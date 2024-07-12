@@ -68,7 +68,7 @@ def n_cycles(n,xs_nplushalf,vs_n,E_fields,B_fields,xs_nminushalf,xs_n,
              ext_E,ext_B,box_size_x,box_size_y,box_size_z,
              part_BC_left,part_BC_right,field_BC_left,field_BC_right,
              laser_mag,laser_k):
-    n=1
+    n=5
     params_i = (xs_nplushalf,vs_n,E_fields,B_fields,xs_nminushalf,xs_n,qs,ms,q_ms,t)
     onecycle_fixed = lambda j,params:one_cycle(params,
                                                dx,dt,grid,grid_start,staggered_grid,
@@ -82,7 +82,7 @@ def simulation(steps_per_snapshot,total_steps,ICs,ext_fields,dx,dt,
                BCs,
                laser_mag = 0, laser_k = 0,
                write_to_file = False, path_to_file = ''):
-    steps_per_snapshot=1
+    steps_per_snapshot=5
     #Unpack ICs
     box_size_x=ICs[0][0]
     box_size_y=ICs[0][1]

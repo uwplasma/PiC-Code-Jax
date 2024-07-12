@@ -7,7 +7,9 @@ import scipy
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import bayex
+from scipy.optimize import least_squares, minimize
 import jaxopt
+from tqdm import tqdm
 #Creating box and grid
 box_size_x = 1e-2
 box_size_y = 1e-2
@@ -71,9 +73,9 @@ fields = (E_fields,B_fields)
 
 ICs = (box_size,particles,fields)
 
-
+# @jax.jit
 def func(x):
-    A=x
+    A=x[0]
     k=2042.0353
 
     ext_E = jnp.zeros(shape=(len(grid),3))
@@ -87,7 +89,7 @@ def func(x):
 
     dt = dx/(2*3e8)
     steps_per_snapshots=20
-    total_steps=1000
+    total_steps=300
 
     start = time.perf_counter()
     Data = simulation(steps_per_snapshots,total_steps,ICs,ext_fields,dx,dt,(0,0,0,0))
@@ -100,34 +102,53 @@ def func(x):
 
     return jnp.mean(E_field_energy)
 
+start_time = time.time();sol = func([1]);print(f'For solution {sol} time taken is {time.time()-start_time:.2f}s')
 
-domain = {'x': bayex.domain.Real(0.0, 0.5)}
-optimizer = bayex.Optimizer(domain=domain, maximize=True, acq='PI')
+# domain = {'x': bayex.domain.Real(0.0, 0.5)}
+# optimizer = bayex.Optimizer(domain=domain, maximize=True, acq='PI')
 
-# Define some prior evaluations to initialise the GP.
-params = {'x': [0.09599999]}
-ys = [func(x) for x in params['x']]
-opt_state = optimizer.init(ys, params)
+# # Define some prior evaluations to initialise the GP.
+# params = {'x': [0.09599999]}
+# ys = [func(x) for x in params['x']]
+# opt_state = optimizer.init(ys, params)
 
-# Sample new points using Jax PRNG approach.
-ori_key = jax.random.key(42)
-for step in range(100):
-    key = jax.random.fold_in(ori_key, step)
-    new_params = optimizer.sample(key, opt_state)
-    y_new = func(**new_params)
-    opt_state = optimizer.fit(opt_state, y_new, new_params)
-    print(y_new,new_params)
+# # Sample new points using Jax PRNG approach.
+# ori_key = jax.random.key(42)
+# for step in range(100):
+#     key = jax.random.fold_in(ori_key, step)
+#     new_params = optimizer.sample(key, opt_state)
+#     y_new = func(**new_params)
+#     opt_state = optimizer.fit(opt_state, y_new, new_params)
+#     print(y_new,new_params)
 
-# from scipy.optimize import least_squares
-# x0=jnp.array([0.09599999])
-# #x0=jnp.array([0.09599999,2042.0353])
-# res_1 = least_squares(func, x0)
-# print(res_1.x)
-# print(res_1.cost)
-# print(res_1.optimality)
+x0=jnp.array([0.09599999])
+max_number_function_evaluations = 15
+max_number_iterations = 10
+tolerance_to_stop_optimization = 1e-5
 
-# x0=jnp.array([0.09599999])
-# solver = jaxopt.LBFGS(fun=func, maxiter=1)
-# res = solver.run(x0)
-# params, state = res
-# print(params, state)
+## Using least squares optimization
+start_time = time.time()
+res_ls = least_squares(func, x0, verbose=2, ftol=tolerance_to_stop_optimization, max_nfev=max_number_function_evaluations)
+sol_ls = res_ls.x[0]
+print(f'For solution with Least Squares x={sol_ls} time taken is {time.time()-start_time}')
+
+## Using BFGS optimization
+start_time = time.time()
+res_bfgs = minimize(func, x0,  method='L-BFGS-B', options={'disp': True,
+                               'maxiter':max_number_iterations, 'maxfun':max_number_function_evaluations,
+                               'gtol':tolerance_to_stop_optimization})
+sol_bfgs = res_bfgs.x[0]
+print(f'For solution with L-BFGS-B x={sol_bfgs} time taken is {time.time()-start_time}')
+
+x0_array = jnp.linspace(min(min(sol_bfgs*1.1,sol_ls*1.1),0.01),max(max(sol_bfgs*1.1,sol_ls*1.1),0.6),15)
+sol_array = [func([x]) for x in tqdm(x0_array)]
+
+plt.figure()
+plt.axvline(x=x0[0], linestyle='--', color='k', linewidth=2, label='Initial Guess')
+plt.axvline(x=sol_ls, linestyle='--', color='r', linewidth=2, label='Least Squares Minimum')
+plt.axvline(x=sol_bfgs, linestyle='--', color='b', linewidth=2, label='L-BFGS-B Minimum')
+plt.plot(x0_array,sol_array)
+plt.xlabel("A")
+plt.ylabel("mean E-field Energy")
+plt.legend()
+plt.show()
