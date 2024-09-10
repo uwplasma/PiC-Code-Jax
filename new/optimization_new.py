@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import bayex
 from scipy.optimize import least_squares, minimize
-import jaxopt
 from tqdm import tqdm
 #Creating box and grid
 box_size_x = 1e-2
@@ -76,12 +75,12 @@ ICs = (box_size,particles,fields)
 # @jax.jit
 def func(x):
     A=x[0]
-    k=2042.0353
+    k=0.3
 
     ext_E = jnp.zeros(shape=(len(grid),3))
     for i in range(len(grid)):
         ext_E = ext_E.at[i].set(jnp.array(
-            [-weight*1.6e-19*no_pseudoelectrons*A*jnp.sin(k*(grid[i]+dx/2))/(k*L*8.85e-12),0,0])
+            [-weight*1.6e-19*no_pseudoelectrons*A*jnp.sin(k*20*jnp.pi*(grid[i]+dx/2)/L)/(k*20*jnp.pi*8.85e-12),0,0])
             )
         
     ext_B = jnp.zeros(shape=(len(grid),3))
@@ -121,26 +120,32 @@ start_time = time.time();sol = func([1]);print(f'For solution {sol} time taken i
 #     opt_state = optimizer.fit(opt_state, y_new, new_params)
 #     print(y_new,new_params)
 
-x0=jnp.array([0.09599999])
+x0=jnp.array([0.15])
 max_number_function_evaluations = 15
 max_number_iterations = 10
 tolerance_to_stop_optimization = 1e-5
 
 ## Using least squares optimization
 start_time = time.time()
-res_ls = least_squares(func, x0, verbose=2, ftol=tolerance_to_stop_optimization, max_nfev=max_number_function_evaluations)
+res_ls = least_squares(func, x0, verbose=2, ftol=tolerance_to_stop_optimization, 
+                       max_nfev=max_number_function_evaluations, bounds=(0.07, jnp.inf))
 sol_ls = res_ls.x[0]
 print(f'For solution with Least Squares x={sol_ls} time taken is {time.time()-start_time}')
 
+
 ## Using BFGS optimization
+from scipy.optimize import Bounds
+bounds = Bounds(0.07, jnp.inf)  # Lower bound 0.1 and no upper limit
+
 start_time = time.time()
-res_bfgs = minimize(func, x0,  method='L-BFGS-B', options={'disp': True,
-                               'maxiter':max_number_iterations, 'maxfun':max_number_function_evaluations,
-                               'gtol':tolerance_to_stop_optimization})
+res_bfgs = minimize(func, x0, method='L-BFGS-B', options={'disp': True,
+                               'maxiter': max_number_iterations, 'maxfun': max_number_function_evaluations,
+                               'gtol': tolerance_to_stop_optimization}, bounds=bounds)
 sol_bfgs = res_bfgs.x[0]
 print(f'For solution with L-BFGS-B x={sol_bfgs} time taken is {time.time()-start_time}')
 
-x0_array = jnp.linspace(min(min(sol_bfgs*1.1,sol_ls*1.1),0.01),max(max(sol_bfgs*1.1,sol_ls*1.1),0.6),15)
+
+x0_array = jnp.linspace(min(min(sol_bfgs*1.1,sol_ls*1.1),0.01),max(max(sol_bfgs*1.1,sol_ls*1.1),0.6),30)
 sol_array = [func([x]) for x in tqdm(x0_array)]
 
 plt.figure()

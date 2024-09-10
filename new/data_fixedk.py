@@ -77,7 +77,7 @@ ICs = (box_size,particles,fields)
 
 def func(x):
     A=x
-    k=2042.0353
+    k=2513
     ext_E = jnp.zeros(shape=(len(grid),3))
     for i in range(len(grid)):
         ext_E = ext_E.at[i].set(jnp.array(
@@ -96,14 +96,13 @@ def func(x):
     end = time.perf_counter()
     t = jnp.array(Data['Time'])
 
-    ke_over_time = jnp.array(Data['Kinetic Energy'])
     E_field_energy_density = jnp.array(Data['E-field Energy'])
     E_field_energy = jnp.sum(E_field_energy_density,axis=1)
 
     return jnp.mean(E_field_energy)
 
 # Define the range of values for A and k
-A_values = jnp.linspace(0.001, 0.5, 50)
+A_values = jnp.linspace(1.5, 2, 50)
 
 for i in range(len(A_values)):
 
@@ -117,7 +116,7 @@ for i in range(len(A_values)):
         df = pd.DataFrame([data])
 
         # File path
-        file_path = 'D:\\Desktop\\code\\PiC-Code-Jax-main\\new\\500_steps_max.csv'
+        file_path = 'D:\\Desktop\\code\\PiC-Code-Jax-main\\new\\300_steps_8pi.csv'
 
         # Check if file exists
         if os.path.exists(file_path):
